@@ -1,0 +1,286 @@
+#!/usr/bin/env python3
+#
+# zbxwmi : discovery and bulk checks of WMI items with Zabbix
+# Requires impacket (python pkg) and optionally zabbix_sender
+#
+# Author:
+#  Vitaly Chekryzhev (13hakta@gmail.com)
+
+import argparse, sys, os
+
+def main():
+	global hints
+	hints = {'Name': 's'}
+	parser = argparse.ArgumentParser(add_help = True, description = "Zabbix WMI connector")
+	parser.add_argument('-v', '--version', action='version', version='0.1.4')
+	parser.add_argument('cls', metavar='class', help='WMI class')
+	parser.add_argument('target', help='Target address. Must be FQDN for kerberos auth type')
+
+	parser.add_argument('-action', default='get', choices=['get', 'bulk', 'json', 'discover', 'both'], help='Action to take (default: %(default)s)')
+	parser.add_argument('-namespace', default='//./root/cimv2', help='namespace name (default: %(default)s)')
+
+	parser.add_argument('-key', help='Key')
+	parser.add_argument('-fields', help='Field list delimited by comma')
+	parser.add_argument('-type', help='Field type hint delimited by comma: n - number, s - string (default)')
+	parser.add_argument('-filter', default='', help='Filter')
+	parser.add_argument('-item', default='', help='Selected item')
+
+	group = parser.add_argument_group('Zabbix')
+
+	group.add_argument('-server', metavar='address', default='127.0.0.1', help='Zabbix server (default: %(default)s)')
+	group.add_argument('-sender', metavar='path', default='/usr/bin/zabbix_sender', help='Zabbix sender (default: %(default)s)')
+
+	group = parser.add_argument_group('Authentication')
+
+	group.add_argument('-cred', type=argparse.FileType('r'), default='/etc/zabbix/wmi.pw', help='Credential file (default: %(default)s). '
+					'Contain values per line: username, password, domain')
+
+	group.add_argument('-a', '--auth-type', default='ntlm', choices=['ntlm', 'kerberos'], help='Authentication type')
+
+	group.add_argument('-dc-ip', metavar = "ip address", help='IP Address of the domain controller. If '
+										'ommited it use the domain part (FQDN) specified in the target parameter')
+	group.add_argument('-rpc-auth-level', choices=['integrity', 'privacy', 'default'], nargs='?', default='default',
+										help='integrity (RPC_C_AUTHN_LEVEL_PKT_INTEGRITY) or privacy '
+													'(RPC_C_AUTHN_LEVEL_PKT_PRIVACY). (default: %(default)s)')
+
+	if len(sys.argv) == 1:
+			parser.print_help()
+			sys.exit(1)
+
+	options = parser.parse_args()
+
+	# Extract the arguments
+	emulatekey = False
+
+	if options.key:
+		key = options.key
+	else:
+		key = 'Name'
+		emulatekey = True
+
+	if options.fields is None:
+		fieldlist = []
+	else:
+		fieldlist = [f.strip() for f in options.fields.split(',') if f.strip()]
+		options.fields = ','.join(fieldlist)
+
+	if (options.action == 'get' and options.fields and len(fieldlist) != 1):
+		print("action 'get' requires only one item")
+		sys.exit(1)
+
+	if options.type is not None:
+		idx = 0
+		hintlist = options.type.split(',')
+		for f in fieldlist:
+			if idx < len(hintlist):
+				hints[f] = hintlist[idx].strip()
+			else:
+				hints[f] = 's'
+			idx += 1
+
+	kerberosEnabled = options.auth_type == 'kerberos'
+
+	with options.cred as cred_file:
+		username = cred_file.readline().strip()
+		password = cred_file.readline().strip()
+		domain = cred_file.readline().strip()
+
+	from impacket.dcerpc.v5.dtypes import NULL
+	from impacket.dcerpc.v5.dcom import wmi
+	from impacket.dcerpc.v5.dcomrt import DCOMConnection
+	from impacket.dcerpc.v5.rpcrt import RPC_C_AUTHN_LEVEL_PKT_PRIVACY, RPC_C_AUTHN_LEVEL_PKT_INTEGRITY, RPC_C_AUTHN_LEVEL_NONE
+
+	try:
+		dcom = DCOMConnection(
+			options.target,
+			username,
+			password,
+			domain,
+			'',
+			'',
+			'',
+			oxidResolver=True,
+			doKerberos=kerberosEnabled,
+			kdcHost=options.dc_ip)
+
+		iInterface = dcom.CoCreateInstanceEx(wmi.CLSID_WbemLevel1Login, wmi.IID_IWbemLevel1Login)
+		iWbemLevel1Login = wmi.IWbemLevel1Login(iInterface)
+		iWbemServices = iWbemLevel1Login.NTLMLogin(options.namespace, NULL, NULL)
+
+		if options.rpc_auth_level == 'privacy':
+			iWbemServices.get_dce_rpc().set_auth_level(RPC_C_AUTHN_LEVEL_PKT_PRIVACY)
+		elif options.rpc_auth_level == 'integrity':
+			iWbemServices.get_dce_rpc().set_auth_level(RPC_C_AUTHN_LEVEL_PKT_INTEGRITY)
+
+		iWbemLevel1Login.RemRelease()
+
+		# Construct the query
+		query = "SELECT "
+
+		if not options.fields:
+			options.fields = key
+			query += key
+		else:
+			# Avoid duplicating key if it's already in fields
+			if key in fieldlist:
+				query += options.fields
+			else:
+				query += key + ',' + options.fields
+
+		query += " FROM " + options.cls
+
+		# Conditional request
+		if options.filter or options.item:
+			query += " WHERE "
+			wheres = []
+
+			if options.filter:
+				wheres.append(options.filter)
+
+			if options.item:
+				wheres.append(key + '="' + options.item + '"')
+
+			query += ' AND '.join(wheres)
+
+		response = []
+
+		try:
+			iEnum = iWbemServices.ExecQuery(query)
+
+			while True:
+				try:
+					pEnum = iEnum.Next(0xffffffff, 1)[0]
+					record = pEnum.getProperties()
+
+					j = {}
+
+					for k in record:
+						if type(record[k]['value']) is list:
+							j[k] = []
+							for item in record[k]['value']:
+								j[k].append(item)
+						else:
+							j[k] = record[k]['value']
+
+					response.append(j) # the response output
+				except Exception as e:
+					if str(e).find('S_FALSE') < 0:
+						raise
+					else:
+						break
+
+			iEnum.RemRelease()
+		except Exception as e:
+			print("Query error: " + str(e))
+			print("Query: " + query)
+
+		iWbemServices.RemRelease()
+		dcom.disconnect()
+
+		# What to do with the results ?
+		if options.action == 'get':
+			if len(response) == 0:
+				print("No data returned")
+				sys.exit(1)
+			# Apply type hinting like other actions do (None -> 0 for numbers)
+			value = response[0][options.fields]
+			hint = hints.get(options.fields, 's')
+			if value is None:
+				value = 0 if hint == 'n' else ''
+			print(str(value))
+		elif options.action == 'bulk':
+			send2zabbix(response, key, options.target, options.sender, options.server)
+		elif options.action == 'json':
+			send2zabbix_json(response)
+		elif options.action == 'discover':
+			discovery_json(response)
+		elif options.action == 'both': # Discover + bulk
+			send2zabbix(response, key, options.target, options.sender, options.server)
+			discovery_json(response)
+		else:
+			print("Invalid action.")
+			sys.exit(1)
+	except Exception as e:
+		print("An error occurred: " + str(e))
+		try:
+			dcom.disconnect()
+		except:
+			pass
+
+def tval(k, v):
+	hint = hints.get(k, 's')
+	if hint == 's':
+		if v is None:
+			return '""'
+		return '"' + str(v).replace('\\', '\\\\').replace('"', '\\"') + '"'
+
+	if hint == 'n':
+		if v is None:
+			return '0'
+		return str(v)
+	return str(v)
+
+def discovery_json(data):
+
+	"""
+	Display a JSON-formatted index for Zabbix LLD discovery
+
+	"""
+
+	output = []
+
+	for eachItem in data:
+		res = []
+		for k in eachItem:
+			key = '{#WMI.' + k.upper() + '}'
+			res.append('"' + key + '": ' + tval(k, eachItem[k]))
+		output.append('{' + ', '.join(res) + '}')
+
+	print('{ "data": [', ', '.join(output), '] }')
+
+def send2zabbix_json(data):
+
+	"""
+	Display a JSON-formatted index for Zabbix bulk
+	"""
+
+	output = []
+
+	for eachItem in data:
+		res = ['"' + k + '": ' + tval(k, eachItem[k]) for k in eachItem]
+
+		output.append('{' + ', '.join(res) + '}')
+
+	print("[" + ','.join(output) + "]")
+
+
+def send2zabbix(data, key, host, sender, server):
+
+	"""
+	Bulk inserts data into Zabbix using zabbix_sender
+	"""
+
+	# Contruct the input for zabbix_sender
+	output = ""
+	for eachItem in data:
+		key_val = eachItem.get(key, '')
+		val = "[" + str(key_val) + "] "
+		for k in eachItem:
+			if k == key:
+				continue
+			output += host + " " + k + val + ' ' + tval(k, eachItem[k]) + "\n"
+
+	# Send the values to the server
+	import subprocess
+
+	f = open(os.devnull, "w")
+
+	try:
+		p = subprocess.Popen([sender, '-r', '-z', server, '-i', '-'], stdin=subprocess.PIPE, stdout=f, stderr=f)
+		p.communicate(output.encode())
+	except Exception as e:
+		print("An error occurred with zabbix_sender. " + str(e))
+		sys.exit(1)
+
+if __name__ == '__main__':
+	main()

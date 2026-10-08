@@ -1,0 +1,8 @@
+{
+  "name": "Zabbix Proxy Script",
+  "description": "A clean, elegant blank workspace ready for your thoughts, notes, and ideas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
