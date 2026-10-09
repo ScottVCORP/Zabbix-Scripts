@@ -10,8 +10,8 @@ USER root
 # Install Python3, pip, and impacket dependencies
 RUN  apk add --no-cache
         python3 \
-        python3-pip \
-        python3-impacket \
+        py3-pip \
+        py3-impacket \
         py3-six \
         py3-asn1 \
         py3-pycryptodome \
