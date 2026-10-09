@@ -25,6 +25,7 @@ services:
     network_mode: "service:wireguard"
     volumes:
       - /opt/zabbix/externalscripts:/usr/lib/zabbix/externalscripts/zbxwmi:ro
+       - /opt/zabbix/etc/wmi.pw:/etc/zabbix/wmi.pw:ro
     environment:
       - ZBX_HOSTNAME=zabbix_proxy_${ZBXNAME}
       - ZBX_SERVER_HOST=${ZBXIP}
