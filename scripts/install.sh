@@ -256,7 +256,7 @@ setup_docker_environment() {
   # Prompt for Wireguard Private IP Address
   local wg_ip
   while true; do
-    read -p "Enter the Wireguard Private IP Address (CIDR notation): " wg_ip
+    read -p "Enter the Wireguard Private IP Address (CIDR notation): " wg_ip < /dev/tty
     if validate_cidr "$wg_ip"; then break; fi
     echo "Invalid format. Please enter an IPv4 CIDR notation."
   done
@@ -270,7 +270,7 @@ setup_docker_environment() {
   # Prompt for remote Wireguard Private Assigned IP
   local allowed_ips
  while true; do
-    read -p "Enter the remote Wireguard Private Assigned IP (CIDR notation): " allowed_ips
+    read -p "Enter the remote Wireguard Private Assigned IP (CIDR notation): " allowed_ips < /dev/tty
     if validate_cidr "$allowed_ips"; then break; fi
     echo "Invalid format. Please enter an IPv4 CIDR notation."
   done
