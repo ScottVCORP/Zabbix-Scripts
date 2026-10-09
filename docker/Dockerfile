@@ -8,7 +8,7 @@ FROM zabbix/zabbix-proxy-sqlite3:latest
 USER root
 
 # Install Python3, pip, and impacket dependencies
-RUN  apk add --no-cache
+RUN  apk add --no-cache \
         python3 \
         py3-pip \
         py3-impacket \
@@ -16,7 +16,5 @@ RUN  apk add --no-cache
         py3-asn1 \
         py3-pycryptodome \
         ca-certificates && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
 
 USER zabbix
