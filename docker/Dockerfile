@@ -15,6 +15,6 @@ RUN  apk add --no-cache \
         py3-six \
         py3-asn1 \
         py3-pycryptodome \
-        ca-certificates && \
+        ca-certificates
 
 USER zabbix
