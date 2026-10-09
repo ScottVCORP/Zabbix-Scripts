@@ -328,16 +328,6 @@ RUN apt-get update && \\
 
 USER zabbix`;
 
-const ZBXWMI_SNIPPET = `#!/usr/bin/env python3
-# zbxwmi : discovery and bulk checks of WMI items with Zabbix
-# Source: https://github.com/13hakta/zbxwmi/blob/master/zbxwmi
-# Requires impacket (python pkg) and optionally zabbix_sender
-# Target Host Path: /opt/zabbix/externalscripts/zbxwmi
-# Target Container Path: /usr/lib/zabbix/externalscripts/zbxwmi
-
-import argparse, sys, os
-# ... (Full 286-line script synced into /opt/zabbix/externalscripts/zbxwmi)`;
-
 const TEST_SCRIPT = `#!/usr/bin/env bash
 # ==============================================================================
 # Script: tests/test_scripts.sh
@@ -365,22 +355,9 @@ for script in scripts/install.sh scripts/update.sh tests/test_scripts.sh; do
   fi
 done
 
-# 2. Syntax check for Python scripts
-echo "[TEST] Validating Python script compilation..."
-for py_script in externalscripts/zbxwmi; do
-  if [[ -f "$py_script" ]]; then
-    if python3 -m py_compile "$py_script"; then
-      echo "  [PASS] $py_script compiled cleanly"
-    else
-      echo "  [FAIL] $py_script compilation failed" >&2
-      FAILED=$((FAILED + 1))
-    fi
-  fi
-done
-
 # 3. Check execute permissions
 echo "[TEST] Verifying executable permissions..."
-for exec_file in scripts/install.sh scripts/update.sh externalscripts/zbxwmi tests/test_scripts.sh; do
+for exec_file in scripts/install.sh scripts/update.sh tests/test_scripts.sh; do
   if [[ -f "$exec_file" ]]; then
     if [[ -x "$exec_file" ]]; then
       echo "  [PASS] $exec_file is executable"
@@ -393,7 +370,7 @@ done
 
 # 4. Check critical files existence
 echo "[TEST] Verifying required repository assets..."
-for req in README.md docker/Dockerfile externalscripts/zbxwmi scripts/install.sh scripts/update.sh; do
+for req in README.md docker/Dockerfile scripts/install.sh scripts/update.sh; do
   if [[ -f "$req" ]]; then
     echo "  [PASS] $req exists"
   else
@@ -411,10 +388,10 @@ else
 fi`;
 
 export default function App() {
-  const [selectedScript, setSelectedScript] = useState<'install' | 'update' | 'zbxwmi' | 'dockerfile' | 'tests'>('install');
+  const [selectedScript, setSelectedScript] = useState<'install' | 'update' | 'dockerfile' | 'tests'>('install');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  const scripts: Record<'install' | 'update' | 'zbxwmi' | 'dockerfile' | 'tests', ScriptItem> = {
+  const scripts: Record<'install' | 'update' | 'dockerfile' | 'tests', ScriptItem> = {
     install: {
       path: 'scripts/install.sh',
       targetPath: '/opt/zabbix/scripts/install.sh',
@@ -430,14 +407,6 @@ export default function App() {
       permissions: 'chmod +x /opt/zabbix/scripts/update.sh',
       testingCommand: 'sudo /opt/zabbix/scripts/update.sh && sudo tail -n 10 /var/log/zabbix-scripts/update.log',
       code: UPDATE_SCRIPT,
-    },
-    zbxwmi: {
-      path: 'externalscripts/zbxwmi',
-      targetPath: '/opt/zabbix/externalscripts/zbxwmi',
-      summary: 'High-performance agentless WMI discovery and metrics connector for Windows hosts (queried via impacket, output formatted for Zabbix LLD / bulk sender).',
-      permissions: 'chmod +x /opt/zabbix/externalscripts/zbxwmi',
-      testingCommand: '/opt/zabbix/externalscripts/zbxwmi Win32_OperatingSystem 192.168.1.10 -cred /etc/zabbix/wmi.pw -action get -fields Caption',
-      code: ZBXWMI_SNIPPET,
     },
     dockerfile: {
       path: 'docker/Dockerfile',
@@ -663,16 +632,6 @@ export default function App() {
                 }`}
               >
                 scripts/update.sh
-              </button>
-              <button
-                onClick={() => setSelectedScript('zbxwmi')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
-                  selectedScript === 'zbxwmi'
-                    ? 'bg-zinc-800 text-white shadow-xs'
-                    : 'text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                externalscripts/zbxwmi
               </button>
               <button
                 onClick={() => setSelectedScript('dockerfile')}
