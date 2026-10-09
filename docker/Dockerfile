@@ -3,16 +3,18 @@
 # Purpose: Custom Zabbix Proxy image with Python3 and Impacket for zbxwmi
 # ==============================================================================
 
-FROM zabbix/zabbix-proxy-sqlite3:ubuntu-latest
+FROM zabbix/zabbix-proxy-sqlite3:latest
 
 USER root
 
 # Install Python3, pip, and impacket dependencies
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+RUN  apk add --no-cache
         python3 \
         python3-pip \
         python3-impacket \
+        py3-six \
+        py3-asn1 \
+        py3-pycryptodome \
         ca-certificates && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
