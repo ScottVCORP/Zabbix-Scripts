@@ -302,9 +302,27 @@ EOF
 }
 
 setup_credentials() {
-  # PREPARATION: Windows domain credentials prompting and wmi.pw generation
-  # Will be populated in subsequent phase.
-  log "Credentials setup hook prepared (pending next step)."
+  log "Configuring Windows domain credentials..."
+
+  read -p "Enter the Zabbix user Active Directory Username: " ad_username
+  read -p "Enter the Zabbix user Active Directory Password: " ad_password
+  read -p "Enter the Active Directory Domain Name: " ad_domain
+
+  local wmi_dir="${TARGET_DIR}/etc"
+  local wmi_pw="${wmi_dir}/wmi.pw"
+
+  mkdir -p "${wmi_dir}"
+
+  cat <<EOF > "${wmi_pw}"
+${ad_username}
+${ad_password}
+${ad_domain}
+EOF
+
+  chmod 640 "${wmi_pw}"
+  chown 1997:1995 "${wmi_pw}"
+
+  log "Credentials saved to ${wmi_pw}"
 }
 
 # ------------------------------------------------------------------------------
