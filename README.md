@@ -95,13 +95,6 @@ sudo ./scripts/install.sh
 * **Permissions:** `chmod +x`
 * **Purpose:** Quiet updater executed every hour. It checks the remote repository with an internal timeout, pulls changes if a new commit exists, updates upstream tools (including `externalscripts/zbxwmi`), reapplies executable permissions, and logs execution to `/var/log/zabbix-scripts/update.log`.
 
-### 3. `externalscripts/zbxwmi`
-* **Path:** `/opt/zabbix/externalscripts/zbxwmi` (mounted to `/usr/lib/zabbix/externalscripts/zbxwmi:ro`)
-* **Upstream:** `https://github.com/13hakta/zbxwmi`
-* **Permissions:** `chmod +x`
-* **Purpose:** High-performance agentless WMI discovery and metrics collector for Windows hosts.
-* **Auto-update:** Automatically downloaded and updated hourly alongside this repository. (Note: not tracked in repo, dynamically provisioned).
-
 ---
 
 ## Container Dependencies (Dockerfile)
