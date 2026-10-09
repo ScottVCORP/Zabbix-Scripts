@@ -6,3 +6,5 @@ coverage/
 *.log
 .env*
 !.env.example
+externalscripts/zbxwmi
+externalscripts/__pycache__/
