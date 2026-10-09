@@ -233,6 +233,15 @@ validate_ipv4() {
     return 1
   fi
 }
+# Helper function to validate IPv4 CIDR
+validate_cidr() {
+  local ip=$1
+  if [[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
 
 setup_docker_environment() {
   log "Configuring Docker environment and Wireguard..."
@@ -247,9 +256,9 @@ setup_docker_environment() {
   # Prompt for Wireguard Private IP Address
   local wg_ip
   while true; do
-    read -p "Enter the Wireguard Private IP Address: " wg_ip < /dev/tty
-    if validate_ipv4 "$wg_ip"; then break; fi
-    echo "Invalid format. Please enter an IPv4 dot notation."
+    read -p "Enter the Wireguard Private IP Address (CIDR notation): " wg_ip
+    if validate_cidr "$wg_ip"; then break; fi
+    echo "Invalid format. Please enter an IPv4 CIDR notation."
   done
 
   # Prompt for remote Wireguard Public Key
@@ -260,10 +269,10 @@ setup_docker_environment() {
 
   # Prompt for remote Wireguard Private Assigned IP
   local allowed_ips
-  while true; do
-    read -p "Enter the remote Wireguard Private Assigned IP: " allowed_ips < /dev/tty
-    if validate_ipv4 "$allowed_ips"; then break; fi
-    echo "Invalid format. Please enter an IPv4 dot notation."
+ while true; do
+    read -p "Enter the remote Wireguard Private Assigned IP (CIDR notation): " allowed_ips
+    if validate_cidr "$allowed_ips"; then break; fi
+    echo "Invalid format. Please enter an IPv4 CIDR notation."
   done
 
   # Prompt for Zabbix Hostname
