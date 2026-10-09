@@ -32,7 +32,6 @@ The host environment is organized under `/opt/zabbix`:
 │   ├── docker-compose.yml # Compose service definition for the proxy stack
 │   └── .env              # Environment variables and connection settings
 ├── externalscripts/      # Custom Zabbix monitoring check scripts
-│   ├── zbxwmi            # Windows WMI agentless connector
 │   └── ...               # Bind-mounted read-only to /usr/lib/zabbix/externalscripts:ro
 ├── tests/                # Automated validation tests (Jules & CI)
 │   └── test_scripts.sh   # Syntax and permission test runner
@@ -95,13 +94,6 @@ sudo ./scripts/install.sh
 * **Path:** `/opt/zabbix/scripts/update.sh`
 * **Permissions:** `chmod +x`
 * **Purpose:** Quiet updater executed every hour. It checks the remote repository with an internal timeout, pulls changes if a new commit exists, updates upstream tools (including `externalscripts/zbxwmi`), reapplies executable permissions, and logs execution to `/var/log/zabbix-scripts/update.log`.
-
-### 3. `externalscripts/zbxwmi`
-* **Path:** `/opt/zabbix/externalscripts/zbxwmi` (mounted to `/usr/lib/zabbix/externalscripts/zbxwmi:ro`)
-* **Upstream:** `https://github.com/13hakta/zbxwmi`
-* **Permissions:** `chmod +x`
-* **Purpose:** High-performance agentless WMI discovery and metrics collector for Windows hosts.
-* **Auto-update:** Automatically pulled and updated hourly alongside this repository.
 
 ---
 
