@@ -308,7 +308,7 @@ setup_credentials() {
   read -p "Enter the Zabbix user Active Directory Password: " ad_password
   read -p "Enter the Active Directory Domain Name: " ad_domain
 
-  local wmi_dir="/opt/zabbix/etc"
+  local wmi_dir="${TARGET_DIR}/etc"
   local wmi_pw="${wmi_dir}/wmi.pw"
 
   mkdir -p "${wmi_dir}"
