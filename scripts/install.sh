@@ -234,16 +234,6 @@ validate_ipv4() {
   fi
 }
 
-# Helper function to validate IPv4 CIDR
-validate_cidr() {
-  local ip=$1
-  if [[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]]; then
-    return 0
-  else
-    return 1
-  fi
-}
-
 setup_docker_environment() {
   log "Configuring Docker environment and Wireguard..."
 
@@ -252,37 +242,37 @@ setup_docker_environment() {
   mkdir -p "${wg_dir}"
 
   # Prompt for Wireguard Private Key
-  read -p "Enter the Wireguard Private Key: " wg_privkey
+  read -p "Enter the Wireguard Private Key: " wg_privkey < /dev/tty
 
   # Prompt for Wireguard Private IP Address
   local wg_ip
   while true; do
-    read -p "Enter the Wireguard Private IP Address (CIDR notation): " wg_ip
-    if validate_cidr "$wg_ip"; then break; fi
-    echo "Invalid format. Please enter an IPv4 CIDR notation."
+    read -p "Enter the Wireguard Private IP Address: " wg_ip < /dev/tty
+    if validate_ipv4 "$wg_ip"; then break; fi
+    echo "Invalid format. Please enter an IPv4 dot notation."
   done
 
   # Prompt for remote Wireguard Public Key
-  read -p "Enter the remote Wireguard Public Key: " wg_pubkey
+  read -p "Enter the remote Wireguard Public Key: " wg_pubkey < /dev/tty
 
   # Prompt for remote Wireguard Public hostname
-  read -p "Enter the remote Wireguard Public hostname: " remote_wg_host
+  read -p "Enter the remote Wireguard Public hostname: " remote_wg_host < /dev/tty
 
   # Prompt for remote Wireguard Private Assigned IP
   local allowed_ips
   while true; do
-    read -p "Enter the remote Wireguard Private Assigned IP (CIDR notation): " allowed_ips
-    if validate_cidr "$allowed_ips"; then break; fi
-    echo "Invalid format. Please enter an IPv4 CIDR notation."
+    read -p "Enter the remote Wireguard Private Assigned IP: " allowed_ips < /dev/tty
+    if validate_ipv4 "$allowed_ips"; then break; fi
+    echo "Invalid format. Please enter an IPv4 dot notation."
   done
 
   # Prompt for Zabbix Hostname
-  read -p "Enter Client-Site Code: " zabbix_hostname
+  read -p "Enter Client-Site Code: " zabbix_hostname < /dev/tty
 
   # Prompt for Remote Zabbix IP address
   local zabbix_ip
   while true; do
-    read -p "Enter Remote Zabbix IP address: " zabbix_ip
+    read -p "Enter Remote Zabbix IP address: " zabbix_ip < /dev/tty
     if validate_ipv4 "$zabbix_ip"; then break; fi
     echo "Invalid format. Please enter an IPv4 dot notation."
   done
@@ -312,9 +302,27 @@ EOF
 }
 
 setup_credentials() {
-  # PREPARATION: Windows domain credentials prompting and wmi.pw generation
-  # Will be populated in subsequent phase.
-  log "Credentials setup hook prepared (pending next step)."
+  log "Configuring Windows domain credentials..."
+
+  read -p "Enter the Zabbix user Active Directory Username: " ad_username < /dev/tty
+  read -p "Enter the Zabbix user Active Directory Password: " ad_password < /dev/tty
+  read -p "Enter the Active Directory Domain Name: " ad_domain < /dev/tty
+
+  local wmi_dir="${TARGET_DIR}/etc"
+  local wmi_pw="${wmi_dir}/wmi.pw"
+
+  mkdir -p "${wmi_dir}"
+
+  cat <<EOF > "${wmi_pw}"
+${ad_username}
+${ad_password}
+${ad_domain}
+EOF
+
+  chmod 640 "${wmi_pw}"
+  chown 1997:1995 "${wmi_pw}"
+
+  log "Credentials saved to ${wmi_pw}"
 }
 
 # ------------------------------------------------------------------------------

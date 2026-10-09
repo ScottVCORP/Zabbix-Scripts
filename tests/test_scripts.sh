@@ -25,22 +25,9 @@ for script in scripts/install.sh scripts/update.sh tests/test_scripts.sh; do
   fi
 done
 
-# 2. Syntax check for Python scripts
-echo "[TEST] Validating Python script compilation..."
-for py_script in externalscripts/zbxwmi; do
-  if [[ -f "$py_script" ]]; then
-    if python3 -m py_compile "$py_script"; then
-      echo "  [PASS] $py_script compiled cleanly"
-    else
-      echo "  [FAIL] $py_script compilation failed" >&2
-      FAILED=$((FAILED + 1))
-    fi
-  fi
-done
-
 # 3. Check execute permissions
 echo "[TEST] Verifying executable permissions..."
-for exec_file in scripts/install.sh scripts/update.sh externalscripts/zbxwmi tests/test_scripts.sh; do
+for exec_file in scripts/install.sh scripts/update.sh tests/test_scripts.sh; do
   if [[ -f "$exec_file" ]]; then
     if [[ -x "$exec_file" ]]; then
       echo "  [PASS] $exec_file is executable"
@@ -53,7 +40,7 @@ done
 
 # 4. Check critical files existence
 echo "[TEST] Verifying required repository assets..."
-for req in README.md docker/Dockerfile externalscripts/zbxwmi scripts/install.sh scripts/update.sh; do
+for req in README.md docker/Dockerfile scripts/install.sh scripts/update.sh; do
   if [[ -f "$req" ]]; then
     echo "  [PASS] $req exists"
   else

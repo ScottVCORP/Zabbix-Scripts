@@ -10,22 +10,25 @@ services:
       - PGID=1000
       - TZ=Australia/Sydney
     volumes:
-      - /var/lib/docker/wireguard/config:/config
+      - /var/lib/docker/wireguard/config:/config:ro
     ports:
       - 51820:51820/udp
     restart: unless-stopped
 
   zabbix-proxy:
     image: zabbix/zabbix-proxy-sqlite3:latest
-  #  build:
-  #    context: .
-  #    pull: true
-  #  pull_policy: build
+    build:
+      context: .
+      pull: true
+    pull_policy: build
     container_name: zabbixproxy
     network_mode: "service:wireguard"
+    volumes:
+      - /opt/zabbix/externalscripts:/usr/lib/zabbix/externalscripts/zbxwmi:ro
     environment:
       - ZBX_HOSTNAME=zabbix_proxy_${ZBXNAME}
       - ZBX_SERVER_HOST=${ZBXIP}
+      - ZBX_TIMEOUT=30
     depends_on:
       - wireguard
     restart: unless-stopped
