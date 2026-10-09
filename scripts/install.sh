@@ -224,10 +224,91 @@ EOF
 # ------------------------------------------------------------------------------
 # 8. Placeholders for Upcoming Capabilities
 # ------------------------------------------------------------------------------
+# Helper function to validate IPv4
+validate_ipv4() {
+  local ip=$1
+  if [[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+# Helper function to validate IPv4 CIDR
+validate_cidr() {
+  local ip=$1
+  if [[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
 setup_docker_environment() {
-  # PREPARATION: Docker Compose and environment generation (.env / docker-compose.yml)
-  # Will be populated in subsequent phase.
-  log "Docker environment setup hook prepared (pending next step)."
+  log "Configuring Docker environment and Wireguard..."
+
+  # Ensure Wireguard config directory exists
+  local wg_dir="/var/lib/docker/wireguard/config/wg_confs"
+  mkdir -p "${wg_dir}"
+
+  # Prompt for Wireguard Private Key
+  read -p "Enter the Wireguard Private Key: " wg_privkey
+
+  # Prompt for Wireguard Private IP Address
+  local wg_ip
+  while true; do
+    read -p "Enter the Wireguard Private IP Address (CIDR notation): " wg_ip
+    if validate_cidr "$wg_ip"; then break; fi
+    echo "Invalid format. Please enter an IPv4 CIDR notation."
+  done
+
+  # Prompt for remote Wireguard Public Key
+  read -p "Enter the remote Wireguard Public Key: " wg_pubkey
+
+  # Prompt for remote Wireguard Public hostname
+  read -p "Enter the remote Wireguard Public hostname: " remote_wg_host
+
+  # Prompt for remote Wireguard Private Assigned IP
+  local allowed_ips
+  while true; do
+    read -p "Enter the remote Wireguard Private Assigned IP (CIDR notation): " allowed_ips
+    if validate_cidr "$allowed_ips"; then break; fi
+    echo "Invalid format. Please enter an IPv4 CIDR notation."
+  done
+
+  # Prompt for Zabbix Hostname
+  read -p "Enter Client-Site Code: " zabbix_hostname
+
+  # Prompt for Remote Zabbix IP address
+  local zabbix_ip
+  while true; do
+    read -p "Enter Remote Zabbix IP address: " zabbix_ip
+    if validate_ipv4 "$zabbix_ip"; then break; fi
+    echo "Invalid format. Please enter an IPv4 dot notation."
+  done
+
+  # Create wg0.conf
+  local wg_conf="${wg_dir}/wg0.conf"
+  cat <<EOF > "${wg_conf}"
+[Interface]
+PrivateKey = ${wg_privkey}
+Address = ${wg_ip}
+
+[Peer]
+PublicKey = ${wg_pubkey}
+Endpoint = ${remote_wg_host}:51820
+AllowedIPs = ${allowed_ips}
+PersistentKeepalive = 25
+EOF
+  log "Created ${wg_conf}"
+
+  # Create .env
+  local env_file="${DOCKER_DIR}/.env"
+  cat <<EOF > "${env_file}"
+ZBXNAME=${zabbix_hostname}
+ZBXIP=${zabbix_ip}
+EOF
+  log "Created ${env_file}"
 }
 
 setup_credentials() {
