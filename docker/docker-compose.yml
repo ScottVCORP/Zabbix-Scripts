@@ -1,0 +1,31 @@
+services:
+  wireguard:
+    image: lscr.io/linuxserver/wireguard:latest
+    container_name: wireguard
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Australia/Sydney
+    volumes:
+      - /var/lib/docker/wireguard/config:/config
+    ports:
+      - 51820:51820/udp
+    restart: unless-stopped
+
+  zabbix-proxy:
+    image: zabbix/zabbix-proxy-sqlite3:latest
+  #  build:
+  #    context: .
+  #    pull: true
+  #  pull_policy: build
+    container_name: zabbixproxy
+    network_mode: "service:wireguard"
+    environment:
+      - ZBX_HOSTNAME=zabbix_proxy_${ZBXNAME}
+      - ZBX_SERVER_HOST=${ZBXIP}
+    depends_on:
+      - wireguard
+    restart: unless-stopped
